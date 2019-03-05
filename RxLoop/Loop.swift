@@ -28,6 +28,11 @@ class LoopRuntime<StateType: State> {
     func start(when trigger: Completable) -> Disposable {
         return trigger.andThen(self.loop).bind(to: self.state)
     }
+
+    func start(after dueTime: RxTimeInterval, on scheduler: SchedulerType = MainScheduler.instance) -> Disposable {
+        let trigger = Single<Void>.just(()).delay(dueTime, scheduler: scheduler).asCompletable()
+        return self.start(when: trigger)
+    }
 }
 
 func loop<IntentType: Intent, ActionType: Action, StateType: State> (featureToIntent: @escaping FeatureToIntent<StateType, IntentType>,

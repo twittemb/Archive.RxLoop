@@ -92,26 +92,29 @@ class RxLoopTests: XCTestCase {
     func testExample2() {
         let exp = expectation(description: "")
         let trigger = Observable<Void>.just(()).delay(5, scheduler: MainScheduler.instance).asSingle().asCompletable()
-        let myLoop = loop(featureToIntent: featureToIntent1,
-                          intentToAction: intentToAction,
-                          actionToState: actionToState)
+        let myLoop = loop(featureToIntent: featureToIntent1, intentToAction: intentToAction, actionToState: actionToState)
         myLoop(TestState(name: "Initial State"), stateToFeature1).start(when: trigger).disposed(by: self.disposeBag!)
         waitForExpectations(timeout: 20)
     }
 
     func testExample3() {
         let exp = expectation(description: "")
+        let myLoop = loop(featureToIntent: featureToIntent1, intentToAction: intentToAction, actionToState: actionToState)
+        myLoop(TestState(name: "Initial State"), stateToFeature1).start(after: 3).disposed(by: self.disposeBag!)
+        waitForExpectations(timeout: 20)
+    }
+
+    func testExample4() {
+        let exp = expectation(description: "")
         let featureToIntents = merge(featureToIntent1, featureToIntent2)
         let stateToFeatures = merge(stateToFeature1, stateToFeature2)
-        let myLoop = loop(featureToIntent: featureToIntents,
-                          intentToAction: intentToAction,
-                          actionToState: actionToState)
+        let myLoop = loop(featureToIntent: featureToIntents, intentToAction: intentToAction, actionToState: actionToState)
         myLoop(TestState(name: "Initial State"), stateToFeatures).start().disposed(by: self.disposeBag!)
 
         waitForExpectations(timeout: 30)
     }
 
-    func testExample4() {
+    func testExample5() {
         let exp = expectation(description: "")
 
         let preLoop = preloop(intentToAction: intentToAction, actionToState: actionToState)
