@@ -8,10 +8,11 @@
 import RxSwift
 import RxCocoa
 
-typealias FeatureToIntent<StateType: State, IntentType: Intent> = (Observable<StateType>) -> Observable<IntentType>
-typealias IntentToAction<IntentType: Intent, ActionType: Action> = (Observable<IntentType>) -> Observable<ActionType>
-typealias ActionToState<ActionType: Action, StateType: State> = (Observable<(ActionType, StateType)>) -> Observable<StateType>
-typealias StateToFeature<StateType: State> = (StateType) -> Void
+typealias StateBinder<StateType: State, A> = (Observable<StateType>) -> Observable<A>
+typealias Mapper<A, B> = (Observable<A>) -> Observable<B>
+typealias MutationEmitter<A, Mutation> = (Observable<A>) -> Observable<Mutation>
+typealias Reducer<Mutation, StateType: State> = (Observable<(Mutation, StateType)>) -> Observable<StateType>
+typealias StateInterpreter<StateType: State> = (StateType) -> Void
 
 class LoopRuntime<StateType: State> {
     private let loop: Observable<StateType>
@@ -35,49 +36,64 @@ class LoopRuntime<StateType: State> {
     }
 }
 
-func loop<IntentType: Intent, ActionType: Action, StateType: State> (featureToIntent: @escaping FeatureToIntent<StateType, IntentType>,
-                                                                     intentToAction: @escaping IntentToAction<IntentType, ActionType>,
-                                                                     actionToState: @escaping ActionToState<ActionType, StateType>)
-    -> (StateType, @escaping StateToFeature<StateType>) -> LoopRuntime<StateType> {
+func loop<Mutation, StateType: State> (stateBinder: @escaping StateBinder<StateType, Mutation>,
+                                       reducer: @escaping Reducer<Mutation, StateType>,
+                                       stateInterpreter: @escaping StateInterpreter<StateType>) -> (StateType) -> LoopRuntime<StateType> {
 
-        func actionToActionAndState(actions: Observable<ActionType>, states: Observable<StateType>) -> Observable<(ActionType, StateType)> {
-            return actions.withLatestFrom(states) { ($0, $1) }
+    func tuplize(mutations: Observable<Mutation>, states: Observable<StateType>) -> Observable<(Mutation, StateType)> {
+        return mutations.withLatestFrom(states) { ($0, $1) }
+    }
+
+    return { (initialState: StateType) -> LoopRuntime<StateType> in
+        let state = PublishRelay<StateType>()
+        let initialStateObservable = state.startWith(initialState)
+        let stateBinderToReducer = composeBis(f1: stateBinder, f2: tuplize)
+        let stateBinderToReducedState = composeTer(f1: stateBinderToReducer, f2: reducer) // -> suite de fibonacci: Etat N = Etat 0 + Etat N-1
+        let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).do(onNext: stateInterpreter)
+        return LoopRuntime(with: loop, and: state)
+    }
+}
+
+func loop<A, Mutation, StateType: State> (stateBinder: @escaping StateBinder<StateType, A>,
+                                          mutationEmitter: @escaping MutationEmitter<A, Mutation>,
+                                          reducer: @escaping Reducer<Mutation, StateType>,
+                                          stateInterpreter: @escaping StateInterpreter<StateType>) -> (StateType) -> LoopRuntime<StateType> {
+
+        func tuplize(mutations: Observable<Mutation>, states: Observable<StateType>) -> Observable<(Mutation, StateType)> {
+            return mutations.withLatestFrom(states) { ($0, $1) }
         }
 
-        return { (initialState: StateType, stateToFeature: @escaping StateToFeature<StateType>) -> LoopRuntime<StateType> in
+        return { (initialState: StateType) -> LoopRuntime<StateType> in
             let state = PublishRelay<StateType>()
             let initialStateObservable = state.startWith(initialState)
-            let featuresToActions = compose(f1: featureToIntent, f2: intentToAction)
-            let featuresToActionAndStates = composeBis(f1: featuresToActions, f2: actionToActionAndState)
-            let featuresToStates = composeTer(f1: featuresToActionAndStates, f2: actionToState)
-            let loop = featuresToStates(initialStateObservable, initialStateObservable).do(onNext: stateToFeature)
+            let stateBinderToMutation = compose(f1: stateBinder, f2: mutationEmitter)
+            let stateBinderToReducer = composeBis(f1: stateBinderToMutation, f2: tuplize)
+            let stateBinderToReducedState = composeTer(f1: stateBinderToReducer, f2: reducer)
+            let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).do(onNext: stateInterpreter)
             return LoopRuntime(with: loop, and: state)
-            //            return featuresToStates(initialStateObservable, initialStateObservable).do(onNext: stateToFeature).bind(to: state)
         }
 }
 
-func preloop<IntentType: Intent, ActionType: Action, StateType: State> (intentToAction: @escaping IntentToAction<IntentType, ActionType>,
-                                                                        actionToState: @escaping ActionToState<ActionType, StateType>)
-    -> (@escaping FeatureToIntent<StateType, IntentType>) -> (StateType, @escaping StateToFeature<StateType>) -> LoopRuntime<StateType> {
+func loop<A, B, Mutation, StateType: State> (stateBinder: @escaping StateBinder<StateType, A>,
+                                             mapper: @escaping Mapper<A, B>,
+                                             mutationEmitter: @escaping MutationEmitter<B, Mutation>,
+                                             reducer: @escaping Reducer<Mutation, StateType>,
+                                             stateInterpreter: @escaping StateInterpreter<StateType>) -> (StateType) -> LoopRuntime<StateType> {
 
-        func actionToActionAndState(actions: Observable<ActionType>, states: Observable<StateType>) -> Observable<(ActionType, StateType)> {
-            return actions.withLatestFrom(states) { ($0, $1) }
+        func tuplize(mutations: Observable<Mutation>, states: Observable<StateType>) -> Observable<(Mutation, StateType)> {
+            return mutations.withLatestFrom(states) { ($0, $1) }
         }
 
-        return { (featureToIntent: @escaping FeatureToIntent<StateType, IntentType>) in
-            return { (initialState: StateType, stateToFeature: @escaping StateToFeature<StateType>) -> LoopRuntime<StateType> in
-                let state = PublishRelay<StateType>()
-                let initialStateObservable = state.startWith(initialState)
-                let featuresToActions = compose(f1: featureToIntent, f2: intentToAction)
-                let featuresToActionAndStates = composeBis(f1: featuresToActions, f2: actionToActionAndState)
-                let featuresToStates = composeTer(f1: featuresToActionAndStates, f2: actionToState)
-                let loop = featuresToStates(initialStateObservable, initialStateObservable).do(onNext: stateToFeature)
-                return LoopRuntime(with: loop, and: state)
-                //                return featuresToStates(initialStateObservable, initialStateObservable).do(onNext: stateToFeature).bind(to: state)
-            }
+        return { (initialState: StateType) -> LoopRuntime<StateType> in
+            let state = PublishRelay<StateType>()
+            let initialStateObservable = state.startWith(initialState)
+            let stateBinderToMapper = compose(f1: stateBinder, f2: mapper)
+            let stateBinderToMutation = compose(f1: stateBinderToMapper, f2: mutationEmitter)
+            let stateBinderToReducer = composeBis(f1: stateBinderToMutation, f2: tuplize)
+            let stateBinderToReducedState = composeTer(f1: stateBinderToReducer, f2: reducer)
+            let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).do(onNext: stateInterpreter)
+            return LoopRuntime(with: loop, and: state)
         }
-
-
 }
 
 func compose<A, B, C> (f1: @escaping (A) -> B, f2: @escaping (B) -> C) -> (A) -> C {
@@ -120,3 +136,5 @@ func merge<A> (_ funcs: ((A) -> Void)...) -> (A) -> Void {
         funcs.forEach { $0(a) }
     }
 }
+
+
