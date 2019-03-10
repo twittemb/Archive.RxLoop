@@ -8,13 +8,13 @@
 import RxSwift
 import RxCocoa
 
-typealias StateBinder<StateType: State, A> = (Observable<StateType>) -> Observable<A>
-typealias Mapper<A, B> = (Observable<A>) -> Observable<B>
-typealias MutationEmitter<A, Mutation> = (Observable<A>) -> Observable<Mutation>
-typealias Reducer<Mutation, StateType: State> = (Observable<(Mutation, StateType)>) -> Observable<StateType>
-typealias StateInterpreter<StateType: State> = (StateType) -> Void
+public typealias StateBinder<StateType: State, A> = (Observable<StateType>) -> Observable<A>
+public typealias Mapper<A, B> = (Observable<A>) -> Observable<B>
+public typealias MutationEmitter<A, Mutation> = (Observable<A>) -> Observable<Mutation>
+public typealias Reducer<Mutation, StateType: State> = (Observable<(Mutation, StateType)>) -> Observable<StateType>
+public typealias StateInterpreter<StateType: State> = (StateType) -> Void
 
-class LoopRuntime<StateType: State> {
+public class LoopRuntime<StateType: State> {
     private let loop: Observable<StateType>
     private let state: PublishRelay<StateType>
     init(with loop: Observable<StateType>, and state: PublishRelay<StateType>) {

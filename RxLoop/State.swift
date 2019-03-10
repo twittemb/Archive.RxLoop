@@ -6,4 +6,4 @@
 //  Copyright © 2019 WarpFactor. All rights reserved.
 //
 
-protocol State: Equatable {}
+public protocol State: Equatable {}
