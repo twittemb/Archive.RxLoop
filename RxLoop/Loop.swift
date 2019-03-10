@@ -47,8 +47,8 @@ func loop<Mutation, StateType: State> (stateBinder: @escaping StateBinder<StateT
     return { (initialState: StateType) -> LoopRuntime<StateType> in
         let state = PublishRelay<StateType>()
         let initialStateObservable = state.startWith(initialState)
-        let stateBinderToReducer = composeBis(f1: stateBinder, f2: tuplize)
-        let stateBinderToReducedState = composeTer(f1: stateBinderToReducer, f2: reducer) // -> suite de fibonacci: Etat N = Etat 0 + Etat N-1
+        let stateBinderToReducer = composeAndAgregate(f1: stateBinder, f2: tuplize)
+        let stateBinderToReducedState = composeWithTwoParameters(f1: stateBinderToReducer, f2: reducer) // -> suite de fibonacci: Etat N = Etat 0 + Etat N-1
         let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).do(onNext: stateInterpreter)
         return LoopRuntime(with: loop, and: state)
     }
@@ -67,8 +67,8 @@ func loop<A, Mutation, StateType: State> (stateBinder: @escaping StateBinder<Sta
             let state = PublishRelay<StateType>()
             let initialStateObservable = state.startWith(initialState)
             let stateBinderToMutation = compose(f1: stateBinder, f2: mutationEmitter)
-            let stateBinderToReducer = composeBis(f1: stateBinderToMutation, f2: tuplize)
-            let stateBinderToReducedState = composeTer(f1: stateBinderToReducer, f2: reducer)
+            let stateBinderToReducer = composeAndAgregate(f1: stateBinderToMutation, f2: tuplize)
+            let stateBinderToReducedState = composeWithTwoParameters(f1: stateBinderToReducer, f2: reducer)
             let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).do(onNext: stateInterpreter)
             return LoopRuntime(with: loop, and: state)
         }
@@ -89,52 +89,9 @@ func loop<A, B, Mutation, StateType: State> (stateBinder: @escaping StateBinder<
             let initialStateObservable = state.startWith(initialState)
             let stateBinderToMapper = compose(f1: stateBinder, f2: mapper)
             let stateBinderToMutation = compose(f1: stateBinderToMapper, f2: mutationEmitter)
-            let stateBinderToReducer = composeBis(f1: stateBinderToMutation, f2: tuplize)
-            let stateBinderToReducedState = composeTer(f1: stateBinderToReducer, f2: reducer)
+            let stateBinderToReducer = composeAndAgregate(f1: stateBinderToMutation, f2: tuplize)
+            let stateBinderToReducedState = composeWithTwoParameters(f1: stateBinderToReducer, f2: reducer)
             let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).do(onNext: stateInterpreter)
             return LoopRuntime(with: loop, and: state)
         }
 }
-
-func compose<A, B, C> (f1: @escaping (A) -> B, f2: @escaping (B) -> C) -> (A) -> C {
-    return { (a: A) -> C in
-        return f2(f1(a))
-    }
-}
-
-func composeBis<A, B, C, D> (f1: @escaping (A) -> B, f2: @escaping (B, C) -> D) -> (A, C) -> D {
-    return { (a: A, c: C) -> D in
-        return f2(f1(a), c)
-    }
-}
-
-func composeTer<A, B, C, D> (f1: @escaping (A, B) -> C, f2: @escaping (C) -> D) -> (A, B) -> D {
-    return { (a: A, b: B) -> D in
-        return f2(f1(a, b))
-    }
-}
-
-func flatten<A, B> (funcs: [(A) -> B]) -> (A) -> [B] {
-    return { (a: A) -> [B] in
-        return funcs.map { $0(a) }
-    }
-}
-
-func merge<A, B> (_ funcs: ((A) -> B)...) -> (A) -> B where A: ObservableType, B: ObservableType {
-
-    func observableMerge(inputs: [B]) -> B {
-        return Observable<B.E>.merge(inputs.map { $0.asObservable() }) as! B
-    }
-
-
-    let flatFuncs = flatten(funcs: funcs)
-    return compose(f1: flatFuncs, f2: observableMerge)
-}
-
-func merge<A> (_ funcs: ((A) -> Void)...) -> (A) -> Void {
-    return { (a:A) in
-        funcs.forEach { $0(a) }
-    }
-}
-
-
