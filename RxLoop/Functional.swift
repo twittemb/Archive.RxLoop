@@ -110,7 +110,7 @@ func flatten<A, B> (funcs: [(A) -> B]) -> (A) -> [B] {
     }
 }
 
-func merge<A, B> (_ funcs: ((A) -> B)...) -> (A) -> B where A: ObservableType, B: ObservableType {
+public func merge<A, B> (_ funcs: ((A) -> B)...) -> (A) -> B where A: ObservableType, B: ObservableType {
 
     func observableMerge(inputs: [B]) -> B {
         return Observable<B.E>.merge(inputs.map { $0.asObservable() }) as! B
@@ -121,7 +121,7 @@ func merge<A, B> (_ funcs: ((A) -> B)...) -> (A) -> B where A: ObservableType, B
     return compose(f1: flatFuncs, f2: observableMerge)
 }
 
-func merge<A> (_ funcs: ((A) -> Void)...) -> (A) -> Void {
+public func merge<A> (_ funcs: ((A) -> Void)...) -> (A) -> Void {
     return { (a:A) in
         funcs.forEach { $0(a) }
     }
