@@ -9,6 +9,7 @@
 import XCTest
 import RxSwift
 import RxCocoa
+import Foundation
 @testable import RxLoop
 
 protocol Intent: Equatable {}
@@ -29,12 +30,20 @@ struct TestState: State {
 
 class RxLoopTests: XCTestCase {
 
+    func currentQueueName() -> String? {
+        let name = __dispatch_queue_get_label(nil)
+        return String(cString: name, encoding: .utf8)
+    }
+
     var disposeBag: DisposeBag? = DisposeBag()
 
     func featureToIntent1 (state: Observable<TestState>) -> Observable<TestIntent> {
         return Observable<Int>
             .interval(2, scheduler: MainScheduler.instance)
-            .map { timer in return TestIntent(name: "1: \(timer)") }
+            .map { timer in
+                print("featureToIntent1 -> Queue: \(self.currentQueueName() ?? "queue")")
+                return TestIntent(name: "1: \(timer)")
+            }
             .startWith(TestIntent(name: "1: 0"))
 
 //        return state.do(onNext: { state in print ("intent with State: \(state)") }).map { _ in return TestIntent() }
@@ -63,14 +72,23 @@ class RxLoopTests: XCTestCase {
     }
 
     func intentToAction (intent: Observable<TestIntent>) -> Observable<TestAction> {
-        return intent.map { intent in return TestAction(name: intent.name) }
+        return intent
+            .observeOn(SerialDispatchQueueScheduler.init(qos: .userInteractive))
+            .map { intent in
+            print("intentToAction -> Queue: \(self.currentQueueName() ?? "queue")")
+            return TestAction(name: intent.name)
+        }
     }
 
     func actionToState (actionAndState: Observable<(TestAction, TestState)>) -> Observable<TestState> {
-        return actionAndState.map { (action, state) in return TestState(name: "\(state.name) \(action.name)") }
+        return actionAndState.map { (action, state) in
+            print("actionToState -> Queue: \(self.currentQueueName() ?? "queue")")
+            return TestState(name: "\(state.name) \(action.name)")
+        }
     }
 
     func stateToFeature1 (state: TestState) {
+        print("stateToFeature1 -> Queue: \(self.currentQueueName() ?? "queue")")
         print ("----------- 1: handle side effect for state: \(state)")
     }
 
@@ -83,9 +101,8 @@ class RxLoopTests: XCTestCase {
 
         let myLoop = loop(stateBinder: featureToIntent1,
                           mutationEmitter: intentToAction,
-                          reducer: actionToState,
-                          stateInterpreter: stateToFeature1)
-        myLoop(TestState(name: "Initial State")).start().disposed(by: self.disposeBag!)
+                          reducer: actionToState)
+        myLoop(TestState(name: "Initial State"), stateToFeature1).start().disposed(by: self.disposeBag!)
         exp.fulfill()
         waitForExpectations(timeout: 5)
 
@@ -97,12 +114,11 @@ class RxLoopTests: XCTestCase {
 
     func testExample2() {
         let exp = expectation(description: "")
-        let trigger = Observable<Void>.just(()).delay(5, scheduler: MainScheduler.instance).asSingle().asCompletable()
+        let trigger = Observable<Void>.just(()).delay(10, scheduler: MainScheduler.instance)
         let myLoop = loop(stateBinder: featureToIntent1,
                           mutationEmitter: intentToAction,
-                          reducer: actionToState,
-                          stateInterpreter: stateToFeature1)
-        myLoop(TestState(name: "Initial State")).start(when: trigger).disposed(by: self.disposeBag!)
+                          reducer: actionToState)
+        myLoop(TestState(name: "Initial State"), stateToFeature1).start(when: trigger).disposed(by: self.disposeBag!)
         waitForExpectations(timeout: 20)
     }
 
@@ -110,9 +126,8 @@ class RxLoopTests: XCTestCase {
         let exp = expectation(description: "")
         let myLoop = loop(stateBinder: featureToIntent1,
                           mutationEmitter: intentToAction,
-                          reducer: actionToState,
-                          stateInterpreter: stateToFeature1)
-        myLoop(TestState(name: "Initial State")).start(after: 3).disposed(by: self.disposeBag!)
+                          reducer: actionToState)
+        myLoop(TestState(name: "Initial State"), stateToFeature1).start(after: 5).disposed(by: self.disposeBag!)
         waitForExpectations(timeout: 20)
     }
 
@@ -122,10 +137,21 @@ class RxLoopTests: XCTestCase {
         let stateToFeatures = merge(stateToFeature1, stateToFeature2)
         let myLoop = loop(stateBinder: featureToIntents,
                           mutationEmitter: intentToAction,
-                          reducer: actionToState,
-                          stateInterpreter: stateToFeatures)
-        myLoop(TestState(name: "Initial State")).start().disposed(by: self.disposeBag!)
+                          reducer: actionToState)
+        myLoop(TestState(name: "Initial State"), stateToFeatures).start().disposed(by: self.disposeBag!)
 
         waitForExpectations(timeout: 30)
+    }
+
+    func testExample5() {
+        let exp = expectation(description: "")
+
+        let completable = Observable<Int>.interval(5, scheduler: MainScheduler.instance).take(1)
+
+        let myLoop = loop(stateBinder: featureToIntent1,
+                          mutationEmitter: intentToAction,
+                          reducer: actionToState)
+        _ = myLoop(TestState(name: "Initial State"), stateToFeature1).take(until: completable).start()
+        waitForExpectations(timeout: 20)
     }
 }

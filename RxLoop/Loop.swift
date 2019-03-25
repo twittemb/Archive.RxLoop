@@ -26,50 +26,55 @@ public class LoopRuntime<StateType: State> {
         return self.loop.bind(to: state)
     }
 
-    public func start(when trigger: Completable) -> Disposable {
-        return trigger.andThen(self.loop).bind(to: self.state)
+    public func start<ObservableTypeType: ObservableType>(when trigger: ObservableTypeType) -> Disposable {
+        return trigger.take(1).flatMap { _ -> Observable<StateType> in return self.loop }.bind(to: self.state)
     }
 
     public func start(after dueTime: RxTimeInterval, on scheduler: SchedulerType = MainScheduler.instance) -> Disposable {
-        let trigger = Single<Void>.just(()).delay(dueTime, scheduler: scheduler).asCompletable()
+        let trigger = Observable<Void>.just(()).delay(dueTime, scheduler: scheduler)
         return self.start(when: trigger)
+    }
+
+    public func take<ObservableTypeType: ObservableType> (until trigger: ObservableTypeType) -> LoopRuntime<StateType> {
+        let loopRuntime = LoopRuntime<StateType>(with: self.loop.takeUntil(trigger.take(1)), and: self.state)
+        return loopRuntime
     }
 }
 
 public func loop<Mutation, StateType: State> (stateBinder: @escaping StateBinder<StateType, Mutation>,
-                                              reducer: @escaping Reducer<Mutation, StateType>,
-                                              stateInterpreter: @escaping StateInterpreter<StateType>) -> (StateType) -> LoopRuntime<StateType> {
+                                              reducer: @escaping Reducer<Mutation, StateType>) ->
+    (StateType, @escaping StateInterpreter<StateType>) -> LoopRuntime<StateType> {
 
     func tuplize(mutations: Observable<Mutation>, states: Observable<StateType>) -> Observable<(Mutation, StateType)> {
         return mutations.withLatestFrom(states) { ($0, $1) }
     }
 
-    return { (initialState: StateType) -> LoopRuntime<StateType> in
+        return { (initialState: StateType, stateInterpreter: @escaping StateInterpreter<StateType>) -> LoopRuntime<StateType> in
         let state = PublishRelay<StateType>()
         let initialStateObservable = state.startWith(initialState)
         let stateBinderToReducer = composeAndAgregate(f1: stateBinder, f2: tuplize)
         let stateBinderToReducedState = composeWithTwoParameters(f1: stateBinderToReducer, f2: reducer) // -> suite de fibonacci: Etat N = Etat 0 + Etat N-1
-        let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).do(onNext: stateInterpreter)
+        let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).observeOn(MainScheduler.instance).do(onNext: stateInterpreter)
         return LoopRuntime(with: loop, and: state)
     }
 }
 
 public func loop<A, Mutation, StateType: State> (stateBinder: @escaping StateBinder<StateType, A>,
                                                  mutationEmitter: @escaping MutationEmitter<A, Mutation>,
-                                                 reducer: @escaping Reducer<Mutation, StateType>,
-                                                 stateInterpreter: @escaping StateInterpreter<StateType>) -> (StateType) -> LoopRuntime<StateType> {
+                                                 reducer: @escaping Reducer<Mutation, StateType>) ->
+    (StateType, @escaping StateInterpreter<StateType>) -> LoopRuntime<StateType> {
 
     func tuplize(mutations: Observable<Mutation>, states: Observable<StateType>) -> Observable<(Mutation, StateType)> {
         return mutations.withLatestFrom(states) { ($0, $1) }
     }
 
-    return { (initialState: StateType) -> LoopRuntime<StateType> in
+    return { (initialState: StateType, stateInterpreter: @escaping StateInterpreter<StateType>) -> LoopRuntime<StateType> in
         let state = PublishRelay<StateType>()
         let initialStateObservable = state.startWith(initialState)
         let stateBinderToMutation = compose(f1: stateBinder, f2: mutationEmitter)
         let stateBinderToReducer = composeAndAgregate(f1: stateBinderToMutation, f2: tuplize)
         let stateBinderToReducedState = composeWithTwoParameters(f1: stateBinderToReducer, f2: reducer)
-        let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).do(onNext: stateInterpreter)
+        let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).observeOn(MainScheduler.instance).do(onNext: stateInterpreter)
         return LoopRuntime(with: loop, and: state)
     }
 }
@@ -77,21 +82,21 @@ public func loop<A, Mutation, StateType: State> (stateBinder: @escaping StateBin
 public func loop<A, B, Mutation, StateType: State> (stateBinder: @escaping StateBinder<StateType, A>,
                                                     mapper: @escaping Mapper<A, B>,
                                                     mutationEmitter: @escaping MutationEmitter<B, Mutation>,
-                                                    reducer: @escaping Reducer<Mutation, StateType>,
-                                                    stateInterpreter: @escaping StateInterpreter<StateType>) -> (StateType) -> LoopRuntime<StateType> {
+                                                    reducer: @escaping Reducer<Mutation, StateType>) ->
+    (StateType, @escaping StateInterpreter<StateType>) -> LoopRuntime<StateType> {
 
     func tuplize(mutations: Observable<Mutation>, states: Observable<StateType>) -> Observable<(Mutation, StateType)> {
         return mutations.withLatestFrom(states) { ($0, $1) }
     }
 
-    return { (initialState: StateType) -> LoopRuntime<StateType> in
+    return { (initialState: StateType, stateInterpreter: @escaping StateInterpreter<StateType>) -> LoopRuntime<StateType> in
         let state = PublishRelay<StateType>()
         let initialStateObservable = state.startWith(initialState)
         let stateBinderToMapper = compose(f1: stateBinder, f2: mapper)
         let stateBinderToMutation = compose(f1: stateBinderToMapper, f2: mutationEmitter)
         let stateBinderToReducer = composeAndAgregate(f1: stateBinderToMutation, f2: tuplize)
         let stateBinderToReducedState = composeWithTwoParameters(f1: stateBinderToReducer, f2: reducer)
-        let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).do(onNext: stateInterpreter)
+        let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).observeOn(MainScheduler.instance).do(onNext: stateInterpreter)
         return LoopRuntime(with: loop, and: state)
     }
 }
