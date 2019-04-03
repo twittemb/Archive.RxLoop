@@ -192,10 +192,11 @@
 				TargetAttributes = {
 					74C42BE52207AD7200F15C14 = {
 						CreatedOnToolsVersion = 10.1;
-						LastSwiftMigration = 1010;
+						LastSwiftMigration = 1020;
 					};
 					74C42BEE2207AD7200F15C14 = {
 						CreatedOnToolsVersion = 10.1;
+						LastSwiftMigration = 1020;
 					};
 				};
 			};
@@ -205,6 +206,7 @@
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				en,
+				Base,
 			);
 			mainGroup = 74C42BDC2207AD7200F15C14;
 			productRefGroup = 74C42BE72207AD7200F15C14 /* Products */;
@@ -412,7 +414,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 4.2;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -442,7 +444,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.genetec.RxLoop;
 				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
 				SKIP_INSTALL = YES;
-				SWIFT_VERSION = 4.2;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
@@ -465,7 +467,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.genetec.RxLoopTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.2;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -488,7 +490,7 @@
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = com.genetec.RxLoopTests;
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 4.2;
+				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Release;
