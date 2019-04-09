@@ -27,11 +27,8 @@ import RxSwift
 ///     - f2: The second function
 /// - Returns: A third function having the input type of the first function and the output type of the second one
 func compose<A, B, C> (f1: @escaping (A) -> B, f2: @escaping (B) -> C) -> (A) -> C {
-    return { (a: A) -> C in
-        return f2(f1(a))
-    }
+    return { a in f2(f1(a)) }
 }
-
 
 /// Compose 2 functions into a third one having 2 input types: the input type of the first function, the second input type of the second function
 /// The output type of the composed function it the same as the output
@@ -56,10 +53,8 @@ func compose<A, B, C> (f1: @escaping (A) -> B, f2: @escaping (B) -> C) -> (A) ->
 ///     - f1: The first function which output type has to be the same as the second function first input type
 ///     - f2: The second function
 /// - Returns: A third function having the input types of the first and second functions and the output type of the second one
-func composeAndAgregate<A, B, C, D> (f1: @escaping (A) -> B, f2: @escaping (B, C) -> D) -> (A, C) -> D {
-    return { (a: A, c: C) -> D in
-        return f2(f1(a), c)
-    }
+func composeAndAggregate<A, B, C, D> (f1: @escaping (A) -> B, f2: @escaping (B, C) -> D) -> (A, C) -> D {
+    return { (a, c) in f2(f1(a), c) }
 }
 
 /// Compose 2 functions into a third one having the two input types
@@ -81,9 +76,7 @@ func composeAndAgregate<A, B, C, D> (f1: @escaping (A) -> B, f2: @escaping (B, C
 ///     - f2: The second function
 /// - Returns: A function having the two input types of the first function and the output type of the second one.
 func composeWithTwoParameters<A, B, C, D> (f1: @escaping (A, B) -> C, f2: @escaping (C) -> D) -> (A, B) -> D {
-    return { (a: A, b: B) -> D in
-        return f2(f1(a, b))
-    }
+    return { (a, b) in f2(f1(a, b)) }
 }
 
 /// Transform an array of functions having the same signature into a function having the input type
@@ -105,9 +98,7 @@ func composeWithTwoParameters<A, B, C, D> (f1: @escaping (A, B) -> C, f2: @escap
 /// - Parameter funcs: The array of functions to flatten
 /// - Returns: A function applying each individual function on the input
 func flatten<A, B> (funcs: [(A) -> B]) -> (A) -> [B] {
-    return { (a: A) -> [B] in
-        return funcs.map { $0(a) }
-    }
+    return { a in funcs.map { $0(a) } }
 }
 
 public func merge<A, B> (_ funcs: ((A) -> B)...) -> (A) -> B where A: ObservableType, B: ObservableType {
