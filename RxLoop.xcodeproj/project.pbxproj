@@ -11,7 +11,6 @@
 		74C42BF52207AD7200F15C14 /* RxLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C42BF42207AD7200F15C14 /* RxLoopTests.swift */; };
 		74C42BF72207AD7200F15C14 /* RxLoop.h in Headers */ = {isa = PBXBuildFile; fileRef = 74C42BE92207AD7200F15C14 /* RxLoop.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		74C42C022207B37300F15C14 /* RxSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 74C42C012207B37300F15C14 /* RxSwift.framework */; };
-		74C42C082207B3F400F15C14 /* State.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C42C072207B3F400F15C14 /* State.swift */; };
 		74C42C0A2207B46200F15C14 /* Loop.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C42C092207B46200F15C14 /* Loop.swift */; };
 		74C42C0B2207D1D500F15C14 /* RxSwift.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 74C42C012207B37300F15C14 /* RxSwift.framework */; };
 		74C42C0D2207D1D600F15C14 /* RxCocoa.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 74C42C0C2207D1D600F15C14 /* RxCocoa.framework */; };
@@ -52,7 +51,6 @@
 		74C42BF42207AD7200F15C14 /* RxLoopTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RxLoopTests.swift; sourceTree = "<group>"; };
 		74C42BF62207AD7200F15C14 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		74C42C012207B37300F15C14 /* RxSwift.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = RxSwift.framework; path = Carthage/Build/iOS/RxSwift.framework; sourceTree = "<group>"; };
-		74C42C072207B3F400F15C14 /* State.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = State.swift; sourceTree = "<group>"; };
 		74C42C092207B46200F15C14 /* Loop.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Loop.swift; sourceTree = "<group>"; };
 		74C42C0C2207D1D600F15C14 /* RxCocoa.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = RxCocoa.framework; path = Carthage/Build/iOS/RxCocoa.framework; sourceTree = "<group>"; };
 		74C724632231E449002EC211 /* Functional.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Functional.swift; sourceTree = "<group>"; };
@@ -106,7 +104,6 @@
 				74C42BEA2207AD7200F15C14 /* Info.plist */,
 				74C724632231E449002EC211 /* Functional.swift */,
 				74C42C092207B46200F15C14 /* Loop.swift */,
-				74C42C072207B3F400F15C14 /* State.swift */,
 			);
 			path = RxLoop;
 			sourceTree = "<group>";
@@ -242,7 +239,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				74C724642231E449002EC211 /* Functional.swift in Sources */,
-				74C42C082207B3F400F15C14 /* State.swift in Sources */,
 				74C42C0A2207B46200F15C14 /* Loop.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

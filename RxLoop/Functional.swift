@@ -112,7 +112,7 @@ public func merge<A, B> (_ funcs: ((A) -> B)...) -> (A) -> B where A: Observable
     return compose(f1: flatFuncs, f2: observableMerge)
 }
 
-public func merge<A> (_ funcs: ((A) -> Void)...) -> (A) -> Void {
+public func concat<A> (_ funcs: ((A) -> Void)...) -> (A) -> Void {
     return { (a:A) in
         funcs.forEach { $0(a) }
     }
