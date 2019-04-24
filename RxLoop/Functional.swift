@@ -26,7 +26,7 @@ import RxSwift
 ///     - f1: The first function which output type has to be the same as the second function input type
 ///     - f2: The second function
 /// - Returns: A third function having the input type of the first function and the output type of the second one
-func compose<A, B, C> (f1: @escaping (A) -> B, f2: @escaping (B) -> C) -> (A) -> C {
+public func compose<A, B, C> (f1: @escaping (A) -> B, f2: @escaping (B) -> C) -> (A) -> C {
     return { a in f2(f1(a)) }
 }
 
