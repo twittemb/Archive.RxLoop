@@ -104,9 +104,8 @@ func flatten<A, B> (funcs: [(A) -> B]) -> (A) -> [B] {
 public func merge<A, B> (_ funcs: ((A) -> B)...) -> (A) -> B where A: ObservableType, B: ObservableType {
 
     func observableMerge(inputs: [B]) -> B {
-        return Observable<B.E>.merge(inputs.map { $0.asObservable() }) as! B
+        return Observable<B.Element>.merge(inputs.map { $0.asObservable() }) as! B
     }
-
 
     let flatFuncs = flatten(funcs: funcs)
     return compose(f1: flatFuncs, f2: observableMerge)

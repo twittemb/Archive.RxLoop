@@ -124,7 +124,7 @@ class RxLoopTests: XCTestCase {
         let exp = expectation(description: "")
         let myLoop = loop(mutationEmitter: compose(f1: featureToIntent1, f2: intentToAction),
                           reducer: actionToState)
-        myLoop(TestState(name: "Initial State"), stateToFeature1).start(after: 5).disposed(by: self.disposeBag!)
+        myLoop(TestState(name: "Initial State"), stateToFeature1).start(after: .seconds(5)).disposed(by: self.disposeBag!)
         waitForExpectations(timeout: 20)
     }
 
