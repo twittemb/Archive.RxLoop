@@ -14,9 +14,10 @@ public typealias StateInterpreter<State> = (State) -> Void
 public typealias Loop<State> = (Observable<State>) -> Observable<State>
 
 public class LoopRuntime<State> {
-    private let loop: Loop<State>
+    private var loop: Loop<State>
     private let state = PublishRelay<State>()
     private let interpreter: StateInterpreter<State>
+    
     init(with loop: @escaping Loop<State>, interpreter: @escaping StateInterpreter<State>) {
         self.loop = loop
         self.interpreter = interpreter
@@ -27,19 +28,23 @@ public class LoopRuntime<State> {
         return self.loop(initialStateObservable).observeOn(MainScheduler.instance).do(onNext: self.interpreter).bind(to: self.state)
     }
 
-//    public func start<ObservableTypeType: ObservableType>(when trigger: ObservableTypeType) -> Disposable {
-//        return trigger.take(1).flatMap { _ -> Observable<StateType> in return self.loop }.bind(to: self.state)
-//    }
-//
-//    public func start(after dueTime: RxTimeInterval, on scheduler: SchedulerType = MainScheduler.instance) -> Disposable {
-//        let trigger = Observable<Void>.just(()).delay(dueTime, scheduler: scheduler)
-//        return self.start(when: trigger)
-//    }
-//
-//    public func take<ObservableTypeType: ObservableType> (until trigger: ObservableTypeType) -> LoopRuntime<StateType> {
-//        let loopRuntime = LoopRuntime<StateType>(with: self.loop.takeUntil(trigger.take(1)), and: self.state)
-//        return loopRuntime
-//    }
+    public func start<ObservableTypeType: ObservableType>(with initialState: State, when trigger: ObservableTypeType) -> Disposable {
+        let initialStateObservable = state.startWith(initialState)
+        return trigger.take(1).flatMap { _ -> Observable<State> in return self.loop(initialStateObservable) }.bind(to: self.state)
+    }
+
+    public func start(with initialState: State, after dueTime: RxTimeInterval, on scheduler: SchedulerType = MainScheduler.instance) -> Disposable {
+        let trigger = Observable<Void>.just(()).delay(dueTime, scheduler: scheduler)
+        return self.start(with: initialState, when: trigger)
+    }
+
+    public func take<ObservableTypeType: ObservableType> (until trigger: ObservableTypeType) -> LoopRuntime<State> {
+        func untilLoop(state: Observable<State>) -> Observable<State> {
+            return self.loop(state).takeUntil(trigger)
+        }
+
+        return LoopRuntime<State>(with: untilLoop, interpreter: self.interpreter)
+    }
 }
 
 
