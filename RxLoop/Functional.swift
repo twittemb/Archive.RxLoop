@@ -26,8 +26,12 @@ import RxSwift
 ///     - f1: The first function which output type has to be the same as the second function input type
 ///     - f2: The second function
 /// - Returns: A third function having the input type of the first function and the output type of the second one
-public func compose<A, B, C> (f1: @escaping (A) -> B, f2: @escaping (B) -> C) -> (A) -> C {
+public func compose1<A, B, C> (f1: @escaping (A) -> B, f2: @escaping (B) -> C) -> (A) -> C {
     return { a in f2(f1(a)) }
+}
+
+public func compose2<A, B> (f1: @escaping () -> A, f2: @escaping (A) -> B) -> () -> B {
+    return { f2(f1()) }
 }
 
 /// Compose 2 functions into a third one having 2 input types: the input type of the first function, the second input type of the second function
@@ -53,7 +57,11 @@ public func compose<A, B, C> (f1: @escaping (A) -> B, f2: @escaping (B) -> C) ->
 ///     - f1: The first function which output type has to be the same as the second function first input type
 ///     - f2: The second function
 /// - Returns: A third function having the input types of the first and second functions and the output type of the second one
-func composeAndAggregate<A, B, C, D> (f1: @escaping (A) -> B, f2: @escaping (B, C) -> D) -> (A, C) -> D {
+func composeAndAggregate<A, B, C> (f1: @escaping () -> A, f2: @escaping (B, A) -> C) -> (B) -> C {
+    return { (b) in f2(b, f1()) }
+}
+
+func composeAndAggregate2<A, B, C, D> (f1: @escaping (A) -> B, f2: @escaping (B, C) -> D) -> (A, C) -> D {
     return { (a, c) in f2(f1(a), c) }
 }
 
@@ -101,6 +109,20 @@ func flatten<A, B> (funcs: [(A) -> B]) -> (A) -> [B] {
     return { a in funcs.map { $0(a) } }
 }
 
+func flatten<A> (funcs: [() -> A]) -> () -> [A] {
+    return { funcs.map { $0() } }
+}
+
+public func merge<A> (_ funcs: (() -> A)...) -> () -> A where A: ObservableType {
+
+    func observableMerge(inputs: [A]) -> A {
+        return Observable<A.Element>.merge(inputs.map { $0.asObservable() }) as! A
+    }
+
+    let flatFuncs = flatten(funcs: funcs)
+    return compose2(f1: flatFuncs, f2: observableMerge)
+}
+
 public func merge<A, B> (_ funcs: ((A) -> B)...) -> (A) -> B where A: ObservableType, B: ObservableType {
 
     func observableMerge(inputs: [B]) -> B {
@@ -108,7 +130,7 @@ public func merge<A, B> (_ funcs: ((A) -> B)...) -> (A) -> B where A: Observable
     }
 
     let flatFuncs = flatten(funcs: funcs)
-    return compose(f1: flatFuncs, f2: observableMerge)
+    return compose1(f1: flatFuncs, f2: observableMerge)
 }
 
 public func concat<A> (_ funcs: ((A) -> Void)...) -> (A) -> Void {

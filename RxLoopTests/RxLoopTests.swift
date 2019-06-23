@@ -37,7 +37,7 @@ class RxLoopTests: XCTestCase {
 
     var disposeBag: DisposeBag? = DisposeBag()
 
-    func featureToIntent1 (state: Observable<TestState>) -> Observable<TestIntent> {
+    func featureToIntent1 () -> Observable<TestIntent> {
         return Observable<Int>
             .interval(2, scheduler: MainScheduler.instance)
             .map { timer in
@@ -57,7 +57,7 @@ class RxLoopTests: XCTestCase {
 //        }
     }
 
-    func featureToIntent2 (state: Observable<TestState>) -> Observable<TestIntent> {
+    func featureToIntent2 () -> Observable<TestIntent> {
 //        return Observable<TestIntent>.just(TestIntent(name: "Intent 2"))
         return Observable<Int>.interval(5, scheduler: MainScheduler.instance).map { timer in return TestIntent(name: "2: \(timer)") }
         //        return state.do(onNext: { state in print ("intent with State: \(state)") }).map { _ in return TestIntent() }
@@ -100,7 +100,8 @@ class RxLoopTests: XCTestCase {
         let exp = expectation(description: "")
 
         let myLoop = loop(mutationEmitter: compose(f1: featureToIntent1, f2: intentToAction),
-                          reducer: actionToState)
+                          reducer: actionToState,
+                          interpreter: stateToFeature1)
         myLoop(TestState(name: "Initial State"), stateToFeature1).start().disposed(by: self.disposeBag!)
         exp.fulfill()
         waitForExpectations(timeout: 5)

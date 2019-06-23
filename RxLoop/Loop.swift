@@ -8,51 +8,61 @@
 import RxSwift
 import RxCocoa
 
-public typealias MutationEmitter<StateType, Mutation> = (Observable<StateType>) -> Observable<Mutation>
-public typealias Reducer<Mutation, StateType> = (Observable<(Mutation, StateType)>) -> Observable<StateType>
-public typealias StateInterpreter<StateType> = (StateType) -> Void
+public typealias MutationEmitter<Mutation> = () -> Observable<Mutation>
+public typealias Reducer<State, Mutation> = (State, Mutation) -> State
+public typealias StateInterpreter<State> = (State) -> Void
+public typealias Loop<State> = (Observable<State>) -> Observable<State>
 
-public class LoopRuntime<StateType> {
-    private let loop: Observable<StateType>
-    private let state: PublishRelay<StateType>
-    init(with loop: Observable<StateType>, and state: PublishRelay<StateType>) {
+public class LoopRuntime<State> {
+    private let loop: Loop<State>
+    private let state = PublishRelay<State>()
+    private let interpreter: StateInterpreter<State>
+    init(with loop: @escaping Loop<State>, interpreter: @escaping StateInterpreter<State>) {
         self.loop = loop
-        self.state = state
+        self.interpreter = interpreter
     }
 
-    public func start () -> Disposable {
-        return self.loop.bind(to: state)
+    public func start (with initialState: State) -> Disposable {
+        let initialStateObservable = state.startWith(initialState)
+        return self.loop(initialStateObservable).observeOn(MainScheduler.instance).do(onNext: self.interpreter).bind(to: self.state)
     }
 
-    public func start<ObservableTypeType: ObservableType>(when trigger: ObservableTypeType) -> Disposable {
-        return trigger.take(1).flatMap { _ -> Observable<StateType> in return self.loop }.bind(to: self.state)
-    }
-
-    public func start(after dueTime: RxTimeInterval, on scheduler: SchedulerType = MainScheduler.instance) -> Disposable {
-        let trigger = Observable<Void>.just(()).delay(dueTime, scheduler: scheduler)
-        return self.start(when: trigger)
-    }
-
-    public func take<ObservableTypeType: ObservableType> (until trigger: ObservableTypeType) -> LoopRuntime<StateType> {
-        let loopRuntime = LoopRuntime<StateType>(with: self.loop.takeUntil(trigger.take(1)), and: self.state)
-        return loopRuntime
-    }
+//    public func start<ObservableTypeType: ObservableType>(when trigger: ObservableTypeType) -> Disposable {
+//        return trigger.take(1).flatMap { _ -> Observable<StateType> in return self.loop }.bind(to: self.state)
+//    }
+//
+//    public func start(after dueTime: RxTimeInterval, on scheduler: SchedulerType = MainScheduler.instance) -> Disposable {
+//        let trigger = Observable<Void>.just(()).delay(dueTime, scheduler: scheduler)
+//        return self.start(when: trigger)
+//    }
+//
+//    public func take<ObservableTypeType: ObservableType> (until trigger: ObservableTypeType) -> LoopRuntime<StateType> {
+//        let loopRuntime = LoopRuntime<StateType>(with: self.loop.takeUntil(trigger.take(1)), and: self.state)
+//        return loopRuntime
+//    }
 }
 
-public func loop<StateType, Mutation> (mutationEmitter: @escaping MutationEmitter<StateType, Mutation>,
-                                       reducer: @escaping Reducer<Mutation, StateType>) ->
-    (StateType, @escaping StateInterpreter<StateType>) -> LoopRuntime<StateType> {
 
-        func tuplize(mutations: Observable<Mutation>, states: Observable<StateType>) -> Observable<(Mutation, StateType)> {
-            return mutations.withLatestFrom(states) { ($0, $1) }
-        }
+public func loop<Mutation, State> (mutationEmitter: @escaping MutationEmitter<Mutation>,
+                                   reducer: @escaping Reducer<State, Mutation>,
+                                   interpreter: @escaping StateInterpreter<State>) -> LoopRuntime<State> {
 
-        return { (initialState, stateInterpreter) in
-            let state = PublishRelay<StateType>()
-            let initialStateObservable = state.startWith(initialState)
-            let stateBinderToReducer = composeAndAggregate(f1: mutationEmitter, f2: tuplize)
-            let stateBinderToReducedState = composeWithTwoParameters(f1: stateBinderToReducer, f2: reducer) // -> suite de fibonacci: Etat N = Etat 0 + Etat N-1
-            let loop = stateBinderToReducedState(initialStateObservable, initialStateObservable).observeOn(MainScheduler.instance).do(onNext: stateInterpreter)
-            return LoopRuntime(with: loop, and: state)
+    func tuplize(states: Observable<State>, mutations: Observable<Mutation>) -> Observable<(State, Mutation)> {
+        return mutations.withLatestFrom(states) { ($1, $0) }
+    }
+
+    func makeObservable<State, Mutation> (f: @escaping (State, Mutation) -> State) -> (Observable<(State, Mutation)>) -> Observable<State>  {
+        return { (observable: Observable<(State, Mutation)>) -> Observable<State> in
+            return observable.map(f)
         }
+    }
+
+    //        let state = PublishRelay<StateType>()
+    //        let initialStateObservable = state.startWith(initialState)
+    let stateBinderToReducer = composeAndAggregate(f1: mutationEmitter, f2: tuplize)
+    let observableReducer = makeObservable(f: reducer)
+    let stateBinderToReducedState = compose1(f1: stateBinderToReducer, f2: observableReducer) // -> suite de fibonacci: Etat N = Etat 0 + Etat N-1
+    // should return the stateBinderToReducedState as a result to be able to feed the stateInterpreter when starting the LoopRuntime
+//    let loop = stateBinderToReducedState(initialStateObservable).observeOn(MainScheduler.instance).do(onNext: stateInterpreter)
+    return LoopRuntime(with: stateBinderToReducedState, interpreter: interpreter)
 }
