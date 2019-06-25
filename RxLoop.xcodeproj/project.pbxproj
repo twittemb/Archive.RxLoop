@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1A67E9DE22C17D9B00E400D0 /* LoopCombine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1A67E9DD22C17D9B00E400D0 /* LoopCombine.swift */; };
 		74C42BF02207AD7200F15C14 /* RxLoop.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 74C42BE62207AD7200F15C14 /* RxLoop.framework */; };
 		74C42BF52207AD7200F15C14 /* RxLoopTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74C42BF42207AD7200F15C14 /* RxLoopTests.swift */; };
 		74C42BF72207AD7200F15C14 /* RxLoop.h in Headers */ = {isa = PBXBuildFile; fileRef = 74C42BE92207AD7200F15C14 /* RxLoop.h */; settings = {ATTRIBUTES = (Public, ); }; };
@@ -44,6 +45,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		1A67E9DD22C17D9B00E400D0 /* LoopCombine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LoopCombine.swift; sourceTree = "<group>"; };
 		74C42BE62207AD7200F15C14 /* RxLoop.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = RxLoop.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		74C42BE92207AD7200F15C14 /* RxLoop.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = RxLoop.h; sourceTree = "<group>"; };
 		74C42BEA2207AD7200F15C14 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -104,6 +106,7 @@
 				74C42BEA2207AD7200F15C14 /* Info.plist */,
 				74C724632231E449002EC211 /* Functional.swift */,
 				74C42C092207B46200F15C14 /* Loop.swift */,
+				1A67E9DD22C17D9B00E400D0 /* LoopCombine.swift */,
 			);
 			path = RxLoop;
 			sourceTree = "<group>";
@@ -239,6 +242,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				74C724642231E449002EC211 /* Functional.swift in Sources */,
+				1A67E9DE22C17D9B00E400D0 /* LoopCombine.swift in Sources */,
 				74C42C0A2207B46200F15C14 /* Loop.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -401,6 +405,7 @@
 				);
 				INFOPLIST_FILE = RxLoop/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -432,6 +437,7 @@
 				);
 				INFOPLIST_FILE = RxLoop/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				IPHONEOS_DEPLOYMENT_TARGET = 13.0;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
