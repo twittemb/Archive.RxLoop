@@ -13,13 +13,13 @@ public typealias Reducer<State, Mutation> = (State, Mutation) -> State
 public typealias StateInterpreter<State> = (State) -> Void
 
 public class LoopBuilder {
-    public static func mutates<Mutation> (with emitter: @escaping MutationEmitter<Mutation>) -> MutationEmitterBuilder<Mutation> {
-        return MutationEmitterBuilder<Mutation>(emitter: emitter)
+    public static func from<Mutation> (_ mutationEmitter: @escaping MutationEmitter<Mutation>) -> MutationEmitterBuilder<Mutation> {
+        return MutationEmitterBuilder<Mutation>(emitter: mutationEmitter)
     }
 }
 
 public class MutationEmitterBuilder<Mutation> {
-    private let mutationEmitter: MutationEmitter<Mutation>
+    fileprivate let mutationEmitter: MutationEmitter<Mutation>
 
     private static func composeEmitters<A, B> (f1: @escaping () -> A, f2: @escaping (A) -> B) -> () -> B {
         return { f2(f1()) }
@@ -43,40 +43,44 @@ public class MutationEmitterBuilder<Mutation> {
         self.mutationEmitter = emitter
     }
 
-    public func compose<NextMutation> (withNextMutationEmitter nextEmitter: @escaping (Observable<Mutation>) -> Observable<NextMutation>) -> MutationEmitterBuilder<NextMutation> {
+    public func compose<NextMutation> (with nextEmitter: @escaping (Observable<Mutation>) -> Observable<NextMutation>) -> MutationEmitterBuilder<NextMutation> {
         let emitter = MutationEmitterBuilder.composeEmitters(f1: self.mutationEmitter, f2: nextEmitter)
         return MutationEmitterBuilder<NextMutation>(emitter: emitter)
     }
 
-    public func merge (withConcurrentMutationEmitter concurrentEmitter: @escaping MutationEmitter<Mutation>) -> MutationEmitterBuilder<Mutation> {
+    public func merge (with concurrentEmitter: @escaping MutationEmitter<Mutation>) -> MutationEmitterBuilder<Mutation> {
         let emitter = MutationEmitterBuilder.mergeEmitter(self.mutationEmitter, concurrentEmitter)
         return MutationEmitterBuilder<Mutation>(emitter: emitter)
     }
 
-    public func reduces<State> (with reducer: @escaping Reducer<State, Mutation>) -> ReducerBuilder<Mutation, State> {
-        return ReducerBuilder<Mutation, State>(emitter: self.mutationEmitter, reducer: reducer)
+    public func scan<State> (initialState: State, with reducer: @escaping Reducer<State, Mutation>) -> ReducerBuilder<Mutation, State> {
+        return ReducerBuilder<Mutation, State>(mutationEmitterBuilder: self, initialState: initialState, reducer: reducer)
     }
 }
 
 public class ReducerBuilder<Mutation, State> {
-    private let mutationEmitter: MutationEmitter<Mutation>
-    private let reducer: Reducer<State, Mutation>
+    fileprivate let mutationEmitterBuilder: MutationEmitterBuilder<Mutation>
+    fileprivate let initialState: State
+    fileprivate let reducer: Reducer<State, Mutation>
 
-    fileprivate init (emitter: @escaping MutationEmitter<Mutation>, reducer: @escaping Reducer<State, Mutation>) {
-        self.mutationEmitter = emitter
+    fileprivate init (mutationEmitterBuilder: MutationEmitterBuilder<Mutation>, initialState: State, reducer: @escaping Reducer<State, Mutation>) {
+        self.mutationEmitterBuilder = mutationEmitterBuilder
+        self.initialState = initialState
         self.reducer = reducer
     }
 
-    public func interprets (with stateInterpreter: @escaping StateInterpreter<State>) -> StateInterpreterBuilder<Mutation, State> {
-        return StateInterpreterBuilder<Mutation, State>(emitter: self.mutationEmitter, reducer: self.reducer, stateInterpreter: stateInterpreter)
+    public func consume (by stateInterpreter: @escaping StateInterpreter<State>,
+                         on scheduler: SchedulerType = MainScheduler.instance) -> StateInterpreterBuilder<Mutation, State> {
+        return StateInterpreterBuilder<Mutation, State>(reducerBuilder: self,
+                                                        stateInterpreter: stateInterpreter,
+                                                        stateInterpreterScheduler: scheduler)
     }
-
 }
 
 public class StateInterpreterBuilder<Mutation, State> {
-    private let mutationEmitter: MutationEmitter<Mutation>
-    private let reducer: Reducer<State, Mutation>
+    private let reducerBuilder: ReducerBuilder<Mutation, State>
     private let stateInterpreter: StateInterpreter<State>
+    private let stateInterpreterScheduler: SchedulerType
 
     private static func concatInterpreters<A> (_ funcs: ((A) -> Void)...) -> (A) -> Void {
         return { (a:A) in
@@ -84,80 +88,27 @@ public class StateInterpreterBuilder<Mutation, State> {
         }
     }
 
-    fileprivate init (emitter: @escaping MutationEmitter<Mutation>, reducer: @escaping Reducer<State, Mutation>, stateInterpreter: @escaping StateInterpreter<State>) {
-        self.mutationEmitter = emitter
-        self.reducer = reducer
+    fileprivate init (reducerBuilder: ReducerBuilder<Mutation, State>,
+                      stateInterpreter: @escaping StateInterpreter<State>,
+                      stateInterpreterScheduler: SchedulerType) {
+        self.reducerBuilder = reducerBuilder
         self.stateInterpreter = stateInterpreter
+        self.stateInterpreterScheduler = stateInterpreterScheduler
     }
 
     public func concat (withNextStateInterpreter nextStateInterpreter: @escaping StateInterpreter<State>) -> StateInterpreterBuilder<Mutation, State> {
         let stateInterpreters = StateInterpreterBuilder.concatInterpreters(self.stateInterpreter, nextStateInterpreter)
-        return StateInterpreterBuilder<Mutation, State>(emitter: self.mutationEmitter, reducer: self.reducer, stateInterpreter: stateInterpreters)
+        return StateInterpreterBuilder<Mutation, State>(reducerBuilder: self.reducerBuilder,
+                                                        stateInterpreter: stateInterpreters,
+                                                        stateInterpreterScheduler: self.stateInterpreterScheduler)
     }
 
-    public func interpret (on scheduler: SchedulerType) -> LoopRuntime<Mutation, State> {
-        return LoopRuntime(with: self.mutationEmitter, reducer: self.reducer, interpreter: self.stateInterpreter, interpretationScheduler: scheduler)
-    }
-}
-
-public class LoopRuntime<Mutation, State> {
-    private let mutationEmitter: MutationEmitter<Mutation>
-    private let reducer: Reducer<State, Mutation>
-    private let interpreter: StateInterpreter<State>
-    private let interpretationScheduler: SchedulerType
-
-    fileprivate init (with mutationEmitter: @escaping MutationEmitter<Mutation>,
-                      reducer: @escaping Reducer<State, Mutation>,
-                      interpreter: @escaping StateInterpreter<State>,
-                      interpretationScheduler: SchedulerType = MainScheduler.instance) {
-        self.mutationEmitter = mutationEmitter
-        self.reducer = reducer
-        self.interpreter = interpreter
-        self.interpretationScheduler = interpretationScheduler
-    }
-
-    private func startStateObservable (with initialState: State) -> Observable<State> {
-        return self.mutationEmitter()
-            .scan(initialState, accumulator: self.reducer)
-            .observeOn(self.interpretationScheduler)
-            .do(onNext: self.interpreter)
-    }
-
-    @discardableResult public func start(with initialState: State) -> Disposable {
-        return self
-            .startStateObservable(with: initialState)
+    public func build() -> Disposable {
+        return self.reducerBuilder.mutationEmitterBuilder.mutationEmitter()
+            .scan(self.reducerBuilder.initialState, accumulator: self.reducerBuilder.reducer)
+            .startWith(self.reducerBuilder.initialState)
+            .observeOn(self.stateInterpreterScheduler)
+            .do(onNext: self.stateInterpreter)
             .subscribe()
     }
-
-    @discardableResult public func start<ObservableTypeType: ObservableType>(with initialState: State, when trigger: ObservableTypeType) -> Disposable {
-        return trigger
-            .take(1)
-            .observeOn(self.interpretationScheduler)
-            .do(onNext: { _ in self.interpreter(initialState) })
-            .flatMap { _ -> Observable<State> in
-                return self.startStateObservable(with: initialState)
-            }
-            .subscribe()
-    }
-
-    public func take<ObservableTypeType: ObservableType> (until trigger: ObservableTypeType) -> LoopRuntime<Mutation, State> {
-        func untilLoop() -> Observable<Mutation> {
-            return self.mutationEmitter().takeUntil(trigger)
-        }
-
-        return LoopRuntime<Mutation, State>(with: untilLoop,
-                                            reducer: self.reducer,
-                                            interpreter: self.interpreter,
-                                            interpretationScheduler: self.interpretationScheduler)
-    }
 }
-
-//public func loop<Mutation, State> (mutationEmitter: @escaping MutationEmitter<Mutation>,
-//                                   reducer: @escaping Reducer<State, Mutation>,
-//                                   interpreter: @escaping StateInterpreter<State>,
-//                                   interpretationScheduler: SchedulerType = MainScheduler.instance) -> LoopRuntime<Mutation, State> {
-//    return LoopRuntime(with: mutationEmitter,
-//                       reducer: reducer,
-//                       interpreter: interpreter,
-//                       interpretationScheduler: interpretationScheduler)
-//}
